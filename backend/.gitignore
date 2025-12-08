@@ -1,31 +1,26 @@
-# Dependencies
+# === Core dependencies ===
 node_modules/
-npm-debug.log
-yarn-error.log
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
-
-# Optional npm cache directory
-.npm
-
-# Build output
+# === Build outputs ===
 dist/
 build/
+out/
+.vercel/
+.next/
+.vite/
+.vite-temp/
+
+# === Cache ===
+*.local
+
+# === Env files ===
+.env
+.env.*.local
+
+# === Logs ===
+*.log
+
+# === Editor folders ===
+.vscode/
+.idea/
+.DS_Store

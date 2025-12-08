@@ -295,6 +295,104 @@ export default function ProfilePage({ setCurrentPage }) {
     }
   };
 
+  const handleUnregister = async (eventId) => {
+    if (!window.confirm('Are you sure you want to unregister from this event?')) {
+      return;
+    }
+  
+    try {
+      setLoading(true);
+      console.log('🗑️ Unregistering from event:', eventId);
+  
+      const event = registeredEvents.find(e => e._id === eventId);
+      if (!event) {
+        throw new Error('Event not found');
+      }
+  
+      // Check if this is a team event and if user is a team leader
+      let isTeamLeader = false;
+      let teamIdToUnregister = null;
+  
+      if (event.registrationType === 'team' && event.teamRegistrations?.length > 0) {
+        for (const teamReg of event.teamRegistrations) {
+          const isInTeam = teamReg.members?.some((m) => 
+            (m.userId?._id || m.userId)?.toString() === profile._id?.toString()
+          );
+  
+          if (isInTeam) {
+            try {
+              const teamRes = await axios.get(
+                `${API_BASE_URL}/teams/${teamReg.teamId?._id || teamReg.teamId}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+  
+              if (teamRes.data.data?.leader?.toString() === profile._id?.toString()) {
+                isTeamLeader = true;
+                teamIdToUnregister = teamReg.teamId?._id || teamReg.teamId;
+                break;
+              }
+            } catch (err) {
+              console.log('Could not verify team leadership');
+            }
+          }
+        }
+      }
+  
+      if (isTeamLeader && teamIdToUnregister) {
+        // Team unregister
+        console.log('👥 Unregistering entire team from event...');
+        const confirmTeamUnregister = window.confirm(
+          '⚠️ You are the team leader. Unregistering will remove your ENTIRE TEAM from this event. All team members will be removed. Continue?'
+        );
+  
+        if (!confirmTeamUnregister) {
+          setLoading(false);
+          return;
+        }
+  
+        const res = await axios.post(
+          `${API_BASE_URL}/events/${eventId}/unregister-team`,
+          { teamId: teamIdToUnregister },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+  
+        console.log('✅ Team unregistered response:', res.data);
+        alert(`✅ Your entire team has been unregistered! ${res.data.message}`);
+      } else {
+        // Individual unregister
+        console.log('👤 Unregistering individual from event...');
+        const res = await axios.post(
+          `${API_BASE_URL}/events/${eventId}/unregister`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+  
+        console.log('✅ Individual unregistered response:', res.data);
+        alert('✅ You have been unregistered from the event!');
+      }
+  
+      // Refresh registered events list
+      console.log('🔄 Refreshing registered events...');
+      const updatedRes = await axios.get(
+        `${API_BASE_URL}/events/my-events/registered`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setRegisteredEvents(updatedRes.data.data);
+      setError('');
+      console.log('✅ Registered events refreshed:', updatedRes.data.data.length);
+    } catch (err) {
+      console.error('❌ Unregister error:', err);
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to unregister from event';
+      setError(errorMsg);
+      alert('❌ ' + errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
+
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setPasswordError("");
@@ -875,8 +973,19 @@ export default function ProfilePage({ setCurrentPage }) {
                             </button>
 
                             {!isOrganizer && (
-                              <button className="btn-danger">
-                                ❌ Unregister (coming soon)
+                              <button
+                                className="btn-danger"
+                                onClick={() => handleUnregister(event._id)}
+                                disabled={loading}
+                                title={
+                                  event.registrationType === "team"
+                                    ? "Unregister entire team"
+                                    : "Unregister yourself"
+                                }
+                              >
+                                {loading
+                                  ? "⏳ Unregistering..."
+                                  : "❌ Unregister"}
                               </button>
                             )}
                           </div>

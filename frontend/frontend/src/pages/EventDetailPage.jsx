@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -5,26 +6,18 @@ import '../styles/EventDetailPage.css';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-const EventDetailPage = ({ eventId, onBack, setCurrentPage }) => {
+export default function EventDetailPage({ eventId, onBack }) {
+  const { user, token } = useAuth();
   const [event, setEvent] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
   const [error, setError] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
-  const [registering, setRegistering] = useState(false);
-  const { user, token } = useAuth();
-
-  console.log('EventDetailPage - Props:', { eventId });
-  console.log('EventDetailPage - Auth:', { user, token });
 
   useEffect(() => {
     if (!eventId) {
       setError('No event ID provided');
-      setLoading(false);
-      return;
-    }
-    if (!token) {
-      setError('No authentication token - Please login');
       setLoading(false);
       return;
     }
@@ -35,59 +28,25 @@ const EventDetailPage = ({ eventId, onBack, setCurrentPage }) => {
     try {
       setLoading(true);
       setError('');
-      
-      const url = `${API_BASE_URL}/events/${eventId}`;
-      console.log('Fetching from URL:', url);
-      
-      const response = await axios.get(url, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+
+      const res = await axios.get(`${API_BASE_URL}/events/${eventId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      
-      console.log('✅ Event data received:', response.data);
-      const eventData = response.data.data;
+
+      const eventData = res.data.data;
       setEvent(eventData);
 
-      // Check if user is in participants array (handle both object and string IDs)
-      const isUserRegistered = eventData.participants?.some(
-        participant => {
-          const participantId = participant._id ? participant._id.toString() : participant.toString();
-          return participantId === user._id.toString();
-        }
-      );
-
-      console.log('Registration check:', {
-        participants: eventData.participants,
-        user_id: user._id,
-        isUserRegistered: isUserRegistered
+      const isUserReg = eventData.participants?.some((p) => {
+        const id = p?._id ? p._id.toString() : p.toString();
+        return user && id === user._id.toString();
       });
+      setIsRegistered(!!isUserReg);
 
-      setIsRegistered(isUserRegistered);
-
-      // Fetch participants list if user is organizer
-      if (user && user._id === eventData.organizerId) {
+      if (user && eventData.organizerId?.toString?.() === user._id.toString()) {
         fetchParticipants();
       }
     } catch (err) {
-      console.error('❌ Full Error:', {
-        message: err.message,
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        responseData: err.response?.data,
-        url: err.config?.url,
-      });
-      
-      if (err.response?.status === 401) {
-        setError('Unauthorized - Please login again');
-      } else if (err.response?.status === 404) {
-        setError('Event not found');
-      } else if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Failed to load event: ' + err.message);
-      }
+      setError(err.response?.data?.message || 'Failed to load event');
     } finally {
       setLoading(false);
     }
@@ -95,29 +54,45 @@ const EventDetailPage = ({ eventId, onBack, setCurrentPage }) => {
 
   const fetchParticipants = async () => {
     try {
-      const response = await axios.get(
+      const res = await axios.get(
         `${API_BASE_URL}/events/${eventId}/participants`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setParticipants(response.data.data || []);
+      setParticipants(res.data.participants || []);
     } catch (err) {
-      console.error('Failed to fetch participants:', err);
+      console.error('Error:', err);
     }
   };
 
+  const getParticipantCount = (ev) => {
+    if (!ev) return 0;
+    if (ev.registrationType === 'individual') {
+      return ev.participants?.length || 0;
+    }
+    return (
+      ev.teamRegistrations?.reduce(
+        (total, reg) => total + (reg.members?.length || 0),
+        0
+      ) || 0
+    );
+  };
+
   const handleRegister = async () => {
+    if (!token) {
+      alert('Please login to register');
+      return;
+    }
     try {
       setRegistering(true);
-      const response = await axios.post(
+      const res = await axios.post(
         `${API_BASE_URL}/events/${eventId}/register`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      if (response.data.success) {
+      if (res.data.success) {
         setIsRegistered(true);
-        fetchEventDetails();
-        alert('✅ Successfully registered for event!');
+        await fetchEventDetails();
+        alert('✅ Registered successfully!');
       }
     } catch (err) {
       alert('❌ ' + (err.response?.data?.message || 'Registration failed'));
@@ -127,154 +102,144 @@ const EventDetailPage = ({ eventId, onBack, setCurrentPage }) => {
   };
 
   const handleUnregister = async () => {
-    if (window.confirm('Are you sure you want to unregister?')) {
-      try {
-        setRegistering(true);
-        const response = await axios.delete(
-          `${API_BASE_URL}/events/${eventId}/register`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        if (response.data.success) {
-          setIsRegistered(false);
-          fetchEventDetails();
-          alert('✅ Successfully unregistered!');
-        }
-      } catch (err) {
-        alert('❌ ' + (err.response?.data?.message || 'Unregistration failed'));
-      } finally {
-        setRegistering(false);
+    if (!token) {
+      alert('Please login first');
+      return;
+    }
+    if (!window.confirm('Unregister from this event?')) return;
+    try {
+      setRegistering(true);
+      const res = await axios.post(
+        `${API_BASE_URL}/events/${eventId}/unregister`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data.success) {
+        setIsRegistered(false);
+        await fetchEventDetails();
+        alert('✅ Unregistered successfully!');
       }
+    } catch (err) {
+      alert('❌ ' + (err.response?.data?.message || 'Unregistration failed'));
+    } finally {
+      setRegistering(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="event-detail-container">
-        <p className="loading">⏳ Loading event details...</p>
+      <div className="detail-container">
+        <button className="back-btn" onClick={onBack}>← Back</button>
+        <div className="loading">Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="event-detail-container">
+      <div className="detail-container">
         <button className="back-btn" onClick={onBack}>← Back</button>
-        <p className="error">⚠️ {error}</p>
+        <div className="error">{error}</div>
       </div>
     );
   }
 
   if (!event) {
     return (
-      <div className="event-detail-container">
+      <div className="detail-container">
         <button className="back-btn" onClick={onBack}>← Back</button>
-        <p>❌ Event not found</p>
+        <div className="error">Event not found</div>
       </div>
     );
   }
 
-  const isOrganizer = user && user._id === event.organizerId;
-  
-  console.log('Debug isOrganizer:', {
-    user_id: user?._id,
-    event_organizerId: event?.organizerId,
-    isOrganizer: isOrganizer,
-    isRegistered: isRegistered
-  });
-
   const eventDate = new Date(event.dates?.startDate || new Date());
+  const isOrganizer = user && (event.organizerId?._id || event.organizerId)?.toString() === user._id.toString();
+  const participantsCount = getParticipantCount(event);
 
   return (
-    <div className="event-detail-container">
-      <button className="back-btn" onClick={onBack}>← Back to Events</button>
+    <div className="detail-container">
+      <button className="back-btn" onClick={onBack}>← Back</button>
 
-      <div className="event-detail-header">
-        <div>
+      <div className="detail-content">
+        <div className="detail-header">
           <h1>{event.title}</h1>
           <p className="category-badge">{event.category}</p>
+          <p className="type-badge">
+            {event.registrationType === 'individual' ? '👤 Individual Event' : '👥 Team Event'}
+          </p>
         </div>
-      </div>
 
-      <div className="event-detail-content">
-        <div className="event-info">
-          <div className="detail-section">
-            <h3>📅 Date & Time</h3>
-            <p>{eventDate.toDateString()}</p>
-            <p className="time">{eventDate.toLocaleTimeString()}</p>
+        <div className="detail-info">
+          <div className="info-row">
+            <span className="info-label">📅 Date & Time:</span>
+            <span>{eventDate.toLocaleString()}</span>
           </div>
-
-          <div className="detail-section">
-            <h3>📍 Location</h3>
-            <p>{event.venue?.name || event.location || 'Not specified'}</p>
+          <div className="info-row">
+            <span className="info-label">📍 Location:</span>
+            <span>{event.venue?.location || event.venue?.name || 'Not specified'}</span>
           </div>
-
-          <div className="detail-section">
-            <h3>📝 Description</h3>
-            <p>{event.description}</p>
+          <div className="info-row">
+            <span className="info-label">👤 Organizer:</span>
+            <span>{event.organizerId?.profile?.fullName || event.organizerId?.username || 'Organization'}</span>
           </div>
-
-          <div className="detail-section">
-            <h3>👤 Organizer</h3>
-            <p>
-                {event.organizerId?.profile?.fullName || 
-                     event.organizerId?.username || 
-                            'Organization'}
-            </p>
-          </div>
-
-          <div className="registration-section">
-            <div className="participant-count">
-              <strong>Participants:</strong> <span className="count">{event.participants?.length || 0}</span>
-            </div>
-
-            {user ? (
-              <div className="register-actions">
-                {isOrganizer ? (
-                  <>
-                    <button className="btn btn-edit" onClick={() => alert('✏️ Edit Event - Coming Soon!')}>
-                      ✏️ Edit Event
-                    </button>
-                    <button className="btn btn-danger" onClick={() => alert('🗑️ Delete Event - Coming Soon!')}>
-                      🗑️ Delete Event
-                    </button>
-                  </>
-                ) : isRegistered ? (
-                  <button className="btn btn-danger" onClick={handleUnregister} disabled={registering}>
-                    {registering ? 'Unregistering...' : '❌ Unregister'}
-                  </button>
-                ) : (
-                  <button className="btn btn-primary" onClick={handleRegister} disabled={registering}>
-                    {registering ? 'Registering...' : '✅ Register'}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <p className="login-prompt">Please login to register</p>
-            )}
+          <div className="info-row">
+            <span className="info-label">👥 Participants:</span>
+            <span>{participantsCount} {event.maxParticipants ? `/ ${event.maxParticipants}` : ''}</span>
           </div>
         </div>
 
-        {isOrganizer && (
-          <div className="participants-list">
-            <h3>👥 Participants ({participants.length})</h3>
-            {participants.length > 0 ? (
-              <div className="participants-grid">
-                {participants.map(p => (
-                  <div key={p._id} className="participant-card">
-                    <p className="participant-name">{p.name}</p>
+        <div className="detail-description">
+          <h2>About</h2>
+          <p>{event.description}</p>
+        </div>
+
+        <div className="detail-actions">
+          {user ? (
+            <>
+              {isOrganizer ? (
+                <p className="organizer-notice">✓ You are organizing this event</p>
+              ) : isRegistered ? (
+                <button 
+                  className="btn btn-unregister"
+                  onClick={handleUnregister}
+                  disabled={registering}
+                >
+                  {registering ? 'Unregistering...' : 'Unregister'}
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-register"
+                  onClick={handleRegister}
+                  disabled={registering}
+                >
+                  {registering ? 'Registering...' : 'Register'}
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="login-notice">Please login to register</p>
+          )}
+        </div>
+
+        {isOrganizer && participants.length > 0 && (
+          <div className="participants-section">
+            <h2>Registered Participants ({participants.length})</h2>
+            <div className="participants-list">
+              {participants.map((p) => (
+                <div key={p._id} className="participant-item">
+                  <div>
+                    <p className="participant-name">
+                      {p.profile?.fullName || p.username || p.name}
+                    </p>
                     <p className="participant-email">{p.email}</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="no-participants">No participants yet</p>
-            )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
     </div>
   );
-};
-
-export default EventDetailPage;
+}

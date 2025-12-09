@@ -6,6 +6,11 @@ const connectDB = require('./config/db');
 // Load environment variables from .env file
 dotenv.config();
 
+// DEBUG: Check if env variables are loaded
+console.log('🔍 DEBUG: MONGO_URI =', process.env.MONGO_URI);
+console.log('🔍 DEBUG: PORT =', process.env.PORT);
+console.log('🔍 DEBUG: NODE_ENV =', process.env.NODE_ENV);
+console.log('🔍 DEBUG: All env keys:', Object.keys(process.env).filter(k => k.startsWith('MONGO') || k === 'PORT' || k === 'NODE_ENV'));
 // Connect to database
 connectDB();
 

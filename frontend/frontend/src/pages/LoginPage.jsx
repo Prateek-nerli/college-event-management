@@ -17,11 +17,18 @@ export default function LoginPage({ setCurrentPage }) {
     const result = await login(email, password);
     
     if (result.success) {
-      // ✅ Navigate to events page after successful login
+      const role = result.user?.role;
       setTimeout(() => {
-        setCurrentPage('events');
+        if (role === "admin") {
+          setCurrentPage("admin-dashboard");
+        } else if (role === "collegeAdmin") {
+          setCurrentPage("college-admin-dashboard");
+        } else {
+          setCurrentPage("events");
+        }
       }, 500);
-    } else {
+    }
+    else {
       setError(result.error);
     }
     

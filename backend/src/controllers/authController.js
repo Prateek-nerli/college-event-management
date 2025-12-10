@@ -1,12 +1,13 @@
 const User = require('../models/User');
 const { sendTokenResponse } = require('../utils/jwt.util');
+const { findPrincipalByUSN } = require('../utils/usnGrouping');
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { username, email, password, collegeId, fullName, department, year, phone, role } = req.body;
+    const { username, email, password, usn, fullName, department, year, phone, role } = req.body;
 
     // Validate that required fields are provided
     if (!username || !email || !password || !fullName) {
@@ -28,21 +29,34 @@ exports.register = async (req, res) => {
       });
     }
 
+    // NEW: Try to find principal by USN, but don't fail if not found
+    let principalId = null;
+    if (usn && role === "student") {
+      try {
+        const principal = await findPrincipalByUSN(usn);
+        if (principal) {
+          principalId = principal._id;
+        }
+      } catch (err) {
+        console.log("Principal not found for USN:", usn, "- Student registered without principal assignment");
+      }
+    }
+
     // Create new user
     const user = await User.create({
-        username,
-        email,
-        password,
-        collegeId,
-        role: role || 'student', // Use provided role or default to 'student'
-        profile: {
-          fullName,
-          department,
-          year,
-          phone
-        }
-      });
-      
+      username,
+      email,
+      password,
+      usn,                    // Changed from collegeId
+      principalId: principalId,  // NEW: null if principal not found
+      role: role || 'student',
+      profile: {
+        fullName,
+        department,
+        year,
+        phone
+      }
+    });
 
     // Send token response (logs user in automatically after registration)
     sendTokenResponse(user, 201, res);

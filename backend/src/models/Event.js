@@ -18,11 +18,15 @@ const eventSchema = new mongoose.Schema(
       enum: ['hackathon', 'cultural', 'workshop', 'sports', 'technical', 'competition', 'seminar'],
       index: true,
     },
-    organizerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
+    
+    // ============ ORGANIZER REFERENCE (now User) ============
+organizerId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User',          // ✅ CHANGE THIS from 'Organizer' to 'User'
+  required: true,
+  index: true,
+},
+    
     venue: {
       name: String,
       location: String,

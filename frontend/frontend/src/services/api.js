@@ -33,5 +33,13 @@ export const eventAPI = {
   getEventParticipants: (eventId) => API.get(`/events/${eventId}/participants`),
 };
 
+export const principalAPI = {
+  register: (data) => API.post("principals/register", data),
+  getRequests: () => API.get("principals/requests"),
+  approve: (id) => API.post(`principals/requests/${id}/approve`),
+  reject: (id, notes) => API.post(`principals/requests/${id}/reject`, { notes }),
+};
+
+
 
 export default API;

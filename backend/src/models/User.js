@@ -23,13 +23,19 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
       select: false,
     },
-    collegeId: {
-      type: String,
-      trim: true,
-    },
+    usn: { 
+      type: String, 
+      trim: true 
+    },  // e.g., "1SI21CS001"
+    principalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },  // Link to principal (null if not found)
+    
     role: {
       type: String,
-      enum: ['student', 'organizer', 'admin'],
+      enum: ['student', 'organizer', 'admin',"collegeAdmin"],
       default: 'student',
     },
 

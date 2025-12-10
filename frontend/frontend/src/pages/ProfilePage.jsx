@@ -5,6 +5,7 @@ import "../styles/ProfilePage.css";
 import EventDetailPage from "./EventDetailPage";
 import EditEventModal from "../components/EditEventModal";
 import ViewParticipantsModal from "../components/ViewParticipantsModal";
+import CertificateTemplateEditor from "../components/certificates/CertificateTemplateEditor";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -19,6 +20,8 @@ export default function ProfilePage({ setCurrentPage }) {
   const [successMsg, setSuccessMsg] = useState("");
   const [editingEvent, setEditingEvent] = useState(null);
   const [viewingParticipants, setViewingParticipants] = useState(null);
+  const [showCertEditor, setShowCertEditor] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState(null);
 
   // Dashboard states
   const [myEvents, setMyEvents] = useState([]);
@@ -296,102 +299,118 @@ export default function ProfilePage({ setCurrentPage }) {
   };
 
   const handleUnregister = async (eventId) => {
-    if (!window.confirm('Are you sure you want to unregister from this event?')) {
+    if (
+      !window.confirm("Are you sure you want to unregister from this event?")
+    ) {
       return;
     }
-  
+
     try {
       setLoading(true);
-      console.log('🗑️ Unregistering from event:', eventId);
-  
-      const event = registeredEvents.find(e => e._id === eventId);
+      console.log("🗑️ Unregistering from event:", eventId);
+
+      const event = registeredEvents.find((e) => e._id === eventId);
       if (!event) {
-        throw new Error('Event not found');
+        throw new Error("Event not found");
       }
-  
+
       // Check if this is a team event and if user is a team leader
       let isTeamLeader = false;
       let teamIdToUnregister = null;
-  
-      if (event.registrationType === 'team' && event.teamRegistrations?.length > 0) {
+
+      if (
+        event.registrationType === "team" &&
+        event.teamRegistrations?.length > 0
+      ) {
         for (const teamReg of event.teamRegistrations) {
-          const isInTeam = teamReg.members?.some((m) => 
-            (m.userId?._id || m.userId)?.toString() === profile._id?.toString()
+          const isInTeam = teamReg.members?.some(
+            (m) =>
+              (m.userId?._id || m.userId)?.toString() ===
+              profile._id?.toString()
           );
-  
+
           if (isInTeam) {
             try {
               const teamRes = await axios.get(
-                `${API_BASE_URL}/teams/${teamReg.teamId?._id || teamReg.teamId}`,
+                `${API_BASE_URL}/teams/${
+                  teamReg.teamId?._id || teamReg.teamId
+                }`,
                 { headers: { Authorization: `Bearer ${token}` } }
               );
-  
-              if (teamRes.data.data?.leader?.toString() === profile._id?.toString()) {
+
+              if (
+                teamRes.data.data?.leader?.toString() ===
+                profile._id?.toString()
+              ) {
                 isTeamLeader = true;
                 teamIdToUnregister = teamReg.teamId?._id || teamReg.teamId;
                 break;
               }
             } catch (err) {
-              console.log('Could not verify team leadership');
+              console.log("Could not verify team leadership");
             }
           }
         }
       }
-  
+
       if (isTeamLeader && teamIdToUnregister) {
         // Team unregister
-        console.log('👥 Unregistering entire team from event...');
+        console.log("👥 Unregistering entire team from event...");
         const confirmTeamUnregister = window.confirm(
-          '⚠️ You are the team leader. Unregistering will remove your ENTIRE TEAM from this event. All team members will be removed. Continue?'
+          "⚠️ You are the team leader. Unregistering will remove your ENTIRE TEAM from this event. All team members will be removed. Continue?"
         );
-  
+
         if (!confirmTeamUnregister) {
           setLoading(false);
           return;
         }
-  
+
         const res = await axios.post(
           `${API_BASE_URL}/events/${eventId}/unregister-team`,
           { teamId: teamIdToUnregister },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-  
-        console.log('✅ Team unregistered response:', res.data);
+
+        console.log("✅ Team unregistered response:", res.data);
         alert(`✅ Your entire team has been unregistered! ${res.data.message}`);
       } else {
         // Individual unregister
-        console.log('👤 Unregistering individual from event...');
+        console.log("👤 Unregistering individual from event...");
         const res = await axios.post(
           `${API_BASE_URL}/events/${eventId}/unregister`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
-  
-        console.log('✅ Individual unregistered response:', res.data);
-        alert('✅ You have been unregistered from the event!');
+
+        console.log("✅ Individual unregistered response:", res.data);
+        alert("✅ You have been unregistered from the event!");
       }
-  
+
       // Refresh registered events list
-      console.log('🔄 Refreshing registered events...');
+      console.log("🔄 Refreshing registered events...");
       const updatedRes = await axios.get(
         `${API_BASE_URL}/events/my-events/registered`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       setRegisteredEvents(updatedRes.data.data);
-      setError('');
-      console.log('✅ Registered events refreshed:', updatedRes.data.data.length);
+      setError("");
+      console.log(
+        "✅ Registered events refreshed:",
+        updatedRes.data.data.length
+      );
     } catch (err) {
-      console.error('❌ Unregister error:', err);
-      const errorMsg = err.response?.data?.message || err.message || 'Failed to unregister from event';
+      console.error("❌ Unregister error:", err);
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to unregister from event";
       setError(errorMsg);
-      alert('❌ ' + errorMsg);
+      alert("❌ " + errorMsg);
     } finally {
       setLoading(false);
     }
   };
-  
-
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -831,6 +850,18 @@ export default function ProfilePage({ setCurrentPage }) {
                                 >
                                   👥 View Participants
                                 </button>
+
+                                {/* NEW: Manage Certificates button */}
+                                <button
+                                  className="btn-secondary"
+                                  onClick={() => {
+                                    setSelectedEventId(event._id);
+                                    setShowCertEditor(true);
+                                  }}
+                                >
+                                  🏅 Manage Certificates
+                                </button>
+
                                 <button
                                   className="btn-edit"
                                   onClick={() => handleEditClick(event)}
@@ -1354,6 +1385,31 @@ export default function ProfilePage({ setCurrentPage }) {
           onClose={() => setViewingParticipants(null)}
         />
       )}
+
+{showCertEditor && selectedEventId && (
+  <div className="modal-overlay">
+    <div className="modal-box">
+      <div className="modal-header">
+        <h2 className="text-lg font-semibold">Certificate Template</h2>
+        <button
+          className="text-sm px-2 py-1 border rounded"
+          onClick={() => {
+            setShowCertEditor(false);
+            setSelectedEventId(null);
+          }}
+        >
+          ✕ Close
+        </button>
+      </div>
+
+      <div className="modal-body">
+        <CertificateTemplateEditor eventId={selectedEventId} />
+      </div>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }

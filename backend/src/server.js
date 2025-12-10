@@ -2,6 +2,8 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const path = require('path');                           // 👈 ADD THIS
+const certificateRoutes = require('./routes/certificateRoutes'); // 👈 ADD THIS
 
 
 // Load environment variables from .env file
@@ -28,6 +30,12 @@ app.use(cors({
     origin: ['http://localhost:5173'],
     credentials: true
 }));
+// Static files for generated certificates & uploads
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'))  // points to backend/uploads
+);
+
 
 
 // ============ ROUTES ============
@@ -61,6 +69,8 @@ app.use("/api/principals", principalRoutes);
 const collegeAdminRoutes = require('./routes/college-admin.routes');
 app.use('/api/college-admin', collegeAdminRoutes);
 
+// Certificate routes
+app.use('/api', certificateRoutes);
 
 
 // Health check route

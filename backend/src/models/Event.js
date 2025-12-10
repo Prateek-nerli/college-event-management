@@ -1,5 +1,54 @@
 const mongoose = require('mongoose');
 
+// ================= CERTIFICATE SUB-SCHEMAS =================
+const certificateSignerSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },    // e.g. "Dr. XYZ"
+    role: { type: String, required: true },    // e.g. "Principal"
+    signatureImageUrl: { type: String },       // we'll use later if you upload signature images
+  },
+  { _id: false }
+);
+
+const certificateTemplateSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, default: false },
+
+    // Header
+    topHeader: { type: String, default: 'AWARDED BY' },
+    mainHeader: { type: String, default: '' }, // college / institute name
+
+    // Title
+    title: {
+      type: String,
+      default: 'Certificate of Participation',
+    },
+    subTitle: { type: String, default: 'PROUDLY PRESENTED TO' },
+
+    // Body
+    presentationText: {
+      type: String,
+      default: 'This is to certify that',
+    },
+    bodyText: {
+      type: String,
+      default:
+        'has actively participated and contributed to the successful completion of this event.',
+    },
+
+    // Optional: fixed date text (otherwise we will use event date)
+    dateText: { type: String },
+
+    // Optional: background image path (for future use)
+    backgroundImageUrl: { type: String },
+
+    // Multiple signers
+    signatures: [certificateSignerSchema],
+  },
+  { _id: false }
+);
+
+// ================= MAIN EVENT SCHEMA =================
 const eventSchema = new mongoose.Schema(
   {
     title: {
@@ -20,12 +69,12 @@ const eventSchema = new mongoose.Schema(
     },
     
     // ============ ORGANIZER REFERENCE (now User) ============
-organizerId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'User',          // ✅ CHANGE THIS from 'Organizer' to 'User'
-  required: true,
-  index: true,
-},
+    organizerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',          // ✅ CHANGE THIS from 'Organizer' to 'User'
+      required: true,
+      index: true,
+    },
     
     venue: {
       name: String,
@@ -128,6 +177,9 @@ organizerId: {
       enum: ['public', 'private'],
       default: 'public',
     },
+
+    // ============ CERTIFICATE TEMPLATE (NEW) ============
+    certificateTemplate: certificateTemplateSchema,
   },
   {
     timestamps: true,

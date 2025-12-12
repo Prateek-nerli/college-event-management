@@ -1,10 +1,12 @@
-// src/pages/EventsPage.jsx
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import '../styles/EventsPage.css';
 
 const API_BASE_URL = 'http://localhost:5000/api';
+
+// Placeholder image if no poster is provided
+const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/e2e8f0/475569?text=Event+Poster+Not+Available";
 
 export default function EventsPage({ onSelectEvent }) {
   const { user, token } = useAuth();
@@ -162,95 +164,105 @@ export default function EventsPage({ onSelectEvent }) {
       minute: '2-digit',
     });
 
+    // Use placeholder if no poster is available
+    const posterUrl = event.poster ? event.poster : PLACEHOLDER_IMAGE;
+
     return (
       <div
         key={event._id}
         className="event-card"
         onClick={() => onSelectEvent(event._id)}
       >
-        <div className="card-top">
-          <div>
+        {/* --- Image Section (Top) --- */}
+        <div className="card-image-wrapper">
+          <img src={posterUrl} alt={event.title} className="card-img" />
+          <span className="category-tag">{event.category}</span>
+        </div>
+
+        {/* --- Content Section (Bottom) --- */}
+        <div className="card-content">
+          <div className="card-header-row">
             <h3>{event.title}</h3>
-            <p className="category">{event.category}</p>
+            <span 
+              className={`badge ${event.registrationType}`} 
+              title={event.registrationType === 'individual' ? 'Individual Registration' : 'Team Registration'}
+            >
+              {event.registrationType === 'individual' ? '👤' : '👥'}
+            </span>
           </div>
-          <span className={`badge ${event.registrationType}`}>
-            {event.registrationType === 'individual' ? '👤' : '👥'}
-          </span>
-        </div>
 
-        <p className="description">
-          {event.description
-            ? event.description.length > 120
-              ? event.description.substring(0, 120) + '...'
-              : event.description
-            : ''}
-        </p>
+          <div className="card-meta-row">
+             <span>📅 {dateStr}, {timeStr}</span>
+             <span>📍 {event.venue?.location || 'TBD'}</span>
+          </div>
 
-        <div className="card-meta">
-          <span>📍 {event.venue?.location || 'TBD'}</span>
-          <span>
-            📅 {dateStr} · {timeStr}
-          </span>
-        </div>
+          <p className="description">
+            {event.description
+              ? event.description.length > 80
+                ? event.description.substring(0, 80) + '...'
+                : event.description
+              : 'No description available.'}
+          </p>
 
-        <div className="card-footer" onClick={(e) => e.stopPropagation()}>
-          {registered ? (
-            <button
-              className="btn btn-unregister"
-              onClick={() => handleUnregister(event._id)}
-              disabled={loading}
-            >
-              Unregister
-            </button>
-          ) : event.registrationType === 'individual' ? (
-            <button
-              className="btn btn-register"
-              onClick={() => handleRegisterIndividual(event._id)}
-              disabled={loading}
-            >
-              Register
-            </button>
-          ) : (
-            <div className="dropdown">
+          <div className="card-footer" onClick={(e) => e.stopPropagation()}>
+            {registered ? (
+              <button
+                className="btn btn-unregister"
+                onClick={() => handleUnregister(event._id)}
+                disabled={loading}
+              >
+                Unregister
+              </button>
+            ) : event.registrationType === 'individual' ? (
               <button
                 className="btn btn-register"
-                onClick={() =>
-                  setSelectedEventId(
-                    selectedEventId === event._id ? null : event._id
-                  )
-                }
+                onClick={() => handleRegisterIndividual(event._id)}
+                disabled={loading}
               >
-                Register Team
+                Register Now
               </button>
-              {selectedEventId === event._id && (
-                <div className="dropdown-menu">
-                  {myTeams.filter((t) => t.leader._id === user._id).length ===
-                  0 ? (
-                    <p className="dropdown-empty">No teams where you are leader</p>
-                  ) : (
-                    myTeams
-                      .filter((t) => t.leader._id === user._id)
-                      .map((team) => (
-                        <button
-                          key={team._id}
-                          className="dropdown-item"
-                          onClick={() =>
-                            handleRegisterTeam(event._id, team._id)
-                          }
-                          disabled={loading}
-                        >
-                          {team.name} (
-                          {team.members?.filter(
-                            (m) => m.status === 'accepted'
-                          ).length || 0}{' '}
-                          members)
-                        </button>
-                      ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+            ) : (
+              <div className="dropdown">
+                <button
+                  className="btn btn-register"
+                  onClick={() =>
+                    setSelectedEventId(
+                      selectedEventId === event._id ? null : event._id
+                    )
+                  }
+                >
+                  Register Team ▼
+                </button>
+                {selectedEventId === event._id && (
+                  <div className="dropdown-menu">
+                    {myTeams.filter((t) => t.leader._id === user._id).length ===
+                    0 ? (
+                      <p className="dropdown-empty">No teams where you are leader</p>
+                    ) : (
+                      myTeams
+                        .filter((t) => t.leader._id === user._id)
+                        .map((team) => (
+                          <button
+                            key={team._id}
+                            className="dropdown-item"
+                            onClick={() =>
+                              handleRegisterTeam(event._id, team._id)
+                            }
+                            disabled={loading}
+                          >
+                            {team.name} (
+                            {team.members?.filter(
+                              (m) => m.status === 'accepted'
+                            ).length || 0}{' '}
+                            members)
+                          </button>
+                        ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -263,20 +275,21 @@ export default function EventsPage({ onSelectEvent }) {
 
   return (
     <div className="events-container">
-     
+      
+      {/* Header Controls */}
       <div className="events-controls">
         <div className="tabs">
           <button
             className={`tab ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveTab('all')}
           >
-            All Events ({allEvents.length})
+            All Events
           </button>
           <button
             className={`tab ${activeTab === 'my' ? 'active' : ''}`}
             onClick={() => setActiveTab('my')}
           >
-            My Events ({myEvents.length})
+            My Events
           </button>
         </div>
 
@@ -313,6 +326,7 @@ export default function EventsPage({ onSelectEvent }) {
         <div className="alert error">{registrationError}</div>
       )}
 
+      {/* Grid Layout */}
       <div className="events-grid">
         {eventsToDisplay.length === 0 ? (
           <div className="empty">

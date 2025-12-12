@@ -2,7 +2,9 @@ import axios from 'axios';
 
 const API = axios.create({
   baseURL: 'http://localhost:5000/api',
-  headers: { 'Content-Type': 'application/json' }
+  // ❌ DELETED: headers: { 'Content-Type': 'application/json' } 
+  // We removed the line above. The browser will now automatically detect 
+  // if it's JSON or FormData (File Upload) and set headers correctly.
 });
 
 API.interceptors.request.use((config) => {
@@ -39,7 +41,5 @@ export const principalAPI = {
   approve: (id) => API.post(`principals/requests/${id}/approve`),
   reject: (id, notes) => API.post(`principals/requests/${id}/reject`, { notes }),
 };
-
-
 
 export default API;

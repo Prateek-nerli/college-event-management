@@ -1,11 +1,11 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 // ================= CERTIFICATE SUB-SCHEMAS =================
 const certificateSignerSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },    // e.g. "Dr. XYZ"
-    role: { type: String, required: true },    // e.g. "Principal"
-    signatureImageUrl: { type: String },       // we'll use later if you upload signature images
+    name: { type: String, required: true }, // e.g. "Dr. XYZ"
+    role: { type: String, required: true }, // e.g. "Principal"
+    signatureImageUrl: { type: String }, // we'll use later if you upload signature images
   },
   { _id: false }
 );
@@ -15,25 +15,25 @@ const certificateTemplateSchema = new mongoose.Schema(
     enabled: { type: Boolean, default: false },
 
     // Header
-    topHeader: { type: String, default: 'AWARDED BY' },
-    mainHeader: { type: String, default: '' }, // college / institute name
+    topHeader: { type: String, default: "AWARDED BY" },
+    mainHeader: { type: String, default: "" }, // college / institute name
 
     // Title
     title: {
       type: String,
-      default: 'Certificate of Participation',
+      default: "Certificate of Participation",
     },
-    subTitle: { type: String, default: 'PROUDLY PRESENTED TO' },
+    subTitle: { type: String, default: "PROUDLY PRESENTED TO" },
 
     // Body
     presentationText: {
       type: String,
-      default: 'This is to certify that',
+      default: "This is to certify that",
     },
     bodyText: {
       type: String,
       default:
-        'has actively participated and contributed to the successful completion of this event.',
+        "has actively participated and contributed to the successful completion of this event.",
     },
 
     // Optional: fixed date text (otherwise we will use event date)
@@ -53,29 +53,37 @@ const eventSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Event title is required'],
+      required: [true, "Event title is required"],
       trim: true,
       index: true,
     },
     description: {
       type: String,
-      required: [true, 'Event description is required'],
+      required: [true, "Event description is required"],
     },
     category: {
       type: String,
       required: true,
-      enum: ['hackathon', 'cultural', 'workshop', 'sports', 'technical', 'competition', 'seminar'],
+      enum: [
+        "hackathon",
+        "cultural",
+        "workshop",
+        "sports",
+        "technical",
+        "competition",
+        "seminar",
+      ],
       index: true,
     },
-    
+
     // ============ ORGANIZER REFERENCE (now User) ============
     organizerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',          // ✅ CHANGE THIS from 'Organizer' to 'User'
+      ref: "User", // ✅ CHANGE THIS from 'Organizer' to 'User'
       required: true,
       index: true,
     },
-    
+
     venue: {
       name: String,
       location: String,
@@ -101,6 +109,10 @@ const eventSchema = new mongoose.Schema(
       default: null,
     },
     rules: [String],
+    rulebookUrl: { type: String, default: null },
+    isPaid: { type: Boolean, default: false },
+    fee: { type: Number, default: 0 },
+
     prizes: [
       {
         position: String,
@@ -112,8 +124,8 @@ const eventSchema = new mongoose.Schema(
     // ============ REGISTRATION TYPE ============
     registrationType: {
       type: String,
-      enum: ['individual', 'team'],
-      default: 'individual',
+      enum: ["individual", "team"],
+      default: "individual",
       required: true,
     },
 
@@ -139,7 +151,7 @@ const eventSchema = new mongoose.Schema(
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: "User",
       },
     ],
 
@@ -148,7 +160,7 @@ const eventSchema = new mongoose.Schema(
       {
         teamId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'Team',
+          ref: "Team",
         },
         registeredAt: {
           type: Date,
@@ -158,7 +170,7 @@ const eventSchema = new mongoose.Schema(
           {
             userId: {
               type: mongoose.Schema.Types.ObjectId,
-              ref: 'User',
+              ref: "User",
             },
           },
         ],
@@ -167,15 +179,15 @@ const eventSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['draft', 'published', 'ongoing', 'completed', 'cancelled'],
-      default: 'draft',
+      enum: ["draft", "published", "ongoing", "completed", "cancelled"],
+      default: "draft",
       index: true,
     },
 
     visibility: {
       type: String,
-      enum: ['public', 'private'],
-      default: 'public',
+      enum: ["public", "private"],
+      default: "public",
     },
 
     // ============ CERTIFICATE TEMPLATE (NEW) ============
@@ -187,23 +199,26 @@ const eventSchema = new mongoose.Schema(
 );
 
 // ============ VIRTUAL: Get participant count (works for both individual and team) ============
-eventSchema.virtual('participantCount').get(function () {
-  if (this.registrationType === 'individual') {
+eventSchema.virtual("participantCount").get(function () {
+  if (this.registrationType === "individual") {
     return this.participants?.length || 0;
   } else {
     // Count all members in team registrations
     return (
-      this.teamRegistrations?.reduce((total, reg) => total + (reg.members?.length || 0), 0) || 0
+      this.teamRegistrations?.reduce(
+        (total, reg) => total + (reg.members?.length || 0),
+        0
+      ) || 0
     );
   }
 });
 
 // ============ VIRTUAL: Get team count ============
-eventSchema.virtual('teamCount').get(function () {
-  if (this.registrationType === 'team') {
+eventSchema.virtual("teamCount").get(function () {
+  if (this.registrationType === "team") {
     return this.teamRegistrations?.length || 0;
   }
   return 0;
 });
 
-module.exports = mongoose.model('Event', eventSchema);
+module.exports = mongoose.model("Event", eventSchema);

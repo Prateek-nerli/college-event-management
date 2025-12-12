@@ -100,30 +100,62 @@ exports.getEventsByOrganizer = async (req, res) => {
 // @access  Private (Organizer only)
 exports.createEvent = async (req, res) => {
   try {
-    const {
+    // 1. Extract raw body data
+    let {
       title,
       description,
       category,
       venue,
-      dates,
+      dates, // In your frontend this was 'startDate'/'endDate', we'll map it below
       rules,
       prizes,
       registrationType,
       teamSize,
       maxParticipants,
-      organizerId, // optional override
+      organizerId,
+      // Frontend sends specific date fields, so let's destructure them too just in case
+      startDate,
+      endDate,
+      registrationDeadline
     } = req.body;
 
-    if (!title || !description || !category || !dates) {
+    // --- FIX 1: HANDLE POSTER FILE ---
+    // If middleware (Multer/Cloudinary) worked, req.file will exist.
+
+    // --- FIX 2: PARSE STRINGIFIED JSON ---
+    // FormData sends objects/arrays as strings. We must parse them back to JSON.
+    // We use a helper function to safely parse or return the original if it's already an object.
+    const safeParse = (val) => {
+      try {
+        return typeof val === 'string' ? JSON.parse(val) : val;
+      } catch (e) {
+        return val;
+      }
+    };
+
+    const parsedVenue = safeParse(venue);
+    const parsedTeamSize = safeParse(teamSize);
+    const parsedPrizes = safeParse(prizes) || [];
+    const parsedRules = safeParse(rules) || [];
+    
+    // Construct the dates object if it wasn't sent as a single object
+    let finalDates = safeParse(dates);
+    if (!finalDates && startDate) {
+        finalDates = {
+            start: startDate,
+            end: endDate,
+            registrationDeadline: registrationDeadline || endDate
+        };
+    }
+
+    if (!title || !description || !category) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please provide all required fields (title, description, category, dates)",
+        message: "Please provide all required fields (title, description, category)",
       });
     }
 
     const finalOrganizerId = organizerId || req.user._id;
-
     console.log("🔵 Creating event with organizerId:", finalOrganizerId);
 
     // Verify organizer in User collection
@@ -135,18 +167,24 @@ exports.createEvent = async (req, res) => {
       });
     }
 
+    // --- FIX 3: CREATE EVENT WITH PARSED DATA AND POSTER ---
+    let posterUrl = "";
+    if (req.file && req.file.path) {
+      posterUrl = req.file.path;
+    }
     const event = await Event.create({
       title,
       description,
       category,
       organizerId: finalOrganizerId,
-      venue,
-      dates,
-      rules: rules || [],
-      prizes: prizes || [],
+      poster: posterUrl, // Add the poster URL here
+      venue: parsedVenue, // Use parsed object
+      dates: finalDates,  // Use parsed/constructed object
+      rules: parsedRules,
+      prizes: parsedPrizes,
       registrationType: registrationType || "individual",
-      teamSize: teamSize || { min: 1, max: 1 },
-      maxParticipants: maxParticipants || 100,
+      teamSize: parsedTeamSize || { min: 1, max: 1 },
+      maxParticipants: Number(maxParticipants) || 100, // Ensure number
       status: "published",
       participants: [],
     });
@@ -171,7 +209,6 @@ exports.createEvent = async (req, res) => {
     });
   }
 };
-
 // @desc    Update event
 // @route   PUT /api/events/:id
 // @access  Private (Organizer only)

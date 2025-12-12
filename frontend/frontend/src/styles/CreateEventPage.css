@@ -339,3 +339,41 @@
     font-size: 13px;
   }
 }
+
+.section-title {
+  font-size: 1.1rem;
+  color: #4b5563;
+  margin-bottom: 1rem;
+  margin-top: 1.5rem;
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 0.5rem;
+}
+
+.upload-box {
+  border: 2px dashed #d1d5db;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.upload-status {
+  font-size: 0.8rem;
+  color: #f59e0b;
+}
+
+.upload-success {
+  font-size: 0.8rem;
+  color: #10b981;
+  font-weight: bold;
+}
+
+.poster-preview {
+  margin-top: 10px;
+  max-height: 150px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+}

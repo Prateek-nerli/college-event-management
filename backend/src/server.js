@@ -52,6 +52,7 @@ app.use('/api/users', userRoutes);
 // Event routes
 app.use('/api/events', require('./routes/event.routes'));
 
+app.use('/api/comments', require('./routes/comment.routes'));
 
 // Team routes
 const teamRoutes = require('./routes/team.routes');
@@ -68,6 +69,8 @@ app.use("/api/principals", principalRoutes);
 
 const collegeAdminRoutes = require('./routes/college-admin.routes');
 app.use('/api/college-admin', collegeAdminRoutes);
+
+app.use('/api/upload', require('./routes/upload.routes'));
 
 // Certificate routes
 app.use('/api', certificateRoutes);

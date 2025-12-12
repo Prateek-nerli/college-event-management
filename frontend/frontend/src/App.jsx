@@ -21,26 +21,39 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState("login");
   const [selectedEventId, setSelectedEventId] = useState(null);
 
+  // Helper to check if user is College Admin OR Principal
+  const isCollegeAdmin = user?.role === "collegeAdmin" || user?.role === "principal";
+
   // Sync currentPage with auth status and handle all roles
   useEffect(() => {
     if (loading) return;
 
+    // 1. Handle Initial Login Redirects
     if (
       isAuthenticated &&
       (currentPage === "login" || currentPage === "register")
     ) {
-      // Route based on user role
-      if (user?.role === "admin") {
+      if (!user || !user.role) return; // Wait for user data
+
+      if (user.role === "admin") {
         setCurrentPage("admin-dashboard");
-      } else if (user?.role === "collegeAdmin") {
+      } else if (isCollegeAdmin) {
         setCurrentPage("college-admin-dashboard");
-      } else if (user?.role === "principal") {
-        setCurrentPage("principal-dashboard");
       } else {
-        // student, organizer
         setCurrentPage("events");
       }
-    } else if (
+    } 
+    // 2. ✅ FIX: Role Enforcement (Prevents the "Flash" to wrong page)
+    // If a Principal/Admin somehow lands on the student 'events' page, redirect them.
+    else if (isAuthenticated && currentPage === 'events') {
+       if (isCollegeAdmin) {
+         setCurrentPage("college-admin-dashboard");
+       } else if (user?.role === "admin") {
+         setCurrentPage("admin-dashboard");
+       }
+    }
+    // 3. Handle Logout/Unauthenticated state
+    else if (
       !isAuthenticated &&
       currentPage !== "login" &&
       currentPage !== "register" &&
@@ -48,17 +61,12 @@ function AppContent() {
     ) {
       setCurrentPage("login");
     }
-  }, [isAuthenticated, loading, user?.role]);
+  }, [isAuthenticated, loading, user, currentPage, isCollegeAdmin]);
 
   if (loading) return <div className="loading">Loading...</div>;
 
   const handleNavClick = (page) => {
-    if (
-      !isAuthenticated &&
-      page !== "login" &&
-      page !== "register" &&
-      page !== "principal-register"
-    ) {
+    if (!isAuthenticated && page !== "login" && page !== "register" && page !== "principal-register") {
       setCurrentPage("login");
     } else {
       setCurrentPage(page);
@@ -75,28 +83,24 @@ function AppContent() {
     setCurrentPage("events");
   };
 
-  // ✅ Single place to open the certificate editor
   const handleOpenCertEditor = (eventId) => {
-    setSelectedEventId(eventId); // Update App state
-    setCurrentPage("certificate-editor"); // Switch page
+    setSelectedEventId(eventId); 
+    setCurrentPage("certificate-editor"); 
   };
 
   // Full-screen Certificate Editor Route
   if (isAuthenticated && currentPage === "certificate-editor" && selectedEventId) {
     return (
       <div className="w-full h-screen bg-gray-50 flex flex-col overflow-hidden">
-         {/* Simple Header for Editor Page */}
          <div className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm shrink-0">
             <h2 className="text-xl font-bold text-gray-800">Certificate Editor</h2>
             <button 
-              onClick={() => setCurrentPage("profile")} // Go back to profile
+              onClick={() => setCurrentPage("profile")} 
               className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition"
             >
               ← Back to Profile
             </button>
          </div>
-         
-         {/* The Editor Component takes remaining height */}
          <div className="flex-1 overflow-hidden relative">
             <CertificateTemplateEditor eventId={selectedEventId} />
          </div>
@@ -104,7 +108,6 @@ function AppContent() {
     );
   }
 
-  // Standard Layout for all other pages
   return (
     <>
       <nav className="navbar">
@@ -113,12 +116,10 @@ function AppContent() {
             className="logo"
             style={{ cursor: "pointer" }}
             onClick={() => {
-              if (user?.role === "collegeAdmin") {
+              if (isCollegeAdmin) {
                 handleNavClick("college-admin-dashboard");
               } else if (user?.role === "admin") {
                 handleNavClick("admin-dashboard");
-              } else if (user?.role === "principal") {
-                handleNavClick("principal-dashboard");
               } else {
                 handleNavClick("events");
               }
@@ -130,60 +131,34 @@ function AppContent() {
             {isAuthenticated ? (
               <>
                 {user?.role === "admin" ? (
-                  <a
-                    onClick={() => handleNavClick("admin-dashboard")}
-                    style={{ cursor: "pointer" }}
-                  >
+                  <a onClick={() => handleNavClick("admin-dashboard")} style={{ cursor: "pointer" }}>
                     🔐 Admin Dashboard
                   </a>
-                ) : user?.role === "collegeAdmin" ? (
+                ) : isCollegeAdmin ? (
+                  /* ✅ Unified Menu for Principal/CollegeAdmin */
                   <>
-                    <a
-                      onClick={() => handleNavClick("college-admin-dashboard")}
-                      style={{ cursor: "pointer" }}
-                    >
+                    <a onClick={() => handleNavClick("college-admin-dashboard")} style={{ cursor: "pointer" }}>
                       Dashboard
                     </a>
-                    <a
-                      onClick={() => handleNavClick("college-admin-events")}
-                      style={{ cursor: "pointer" }}
-                    >
+                    <a onClick={() => handleNavClick("college-admin-events")} style={{ cursor: "pointer" }}>
                       Events
                     </a>
                   </>
-                ) : user?.role === "principal" ? (
-                  <a
-                    onClick={() => handleNavClick("principal-dashboard")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    👨‍💼 Principal
-                  </a>
                 ) : (
+                  /* Student/Organizer Menu */
                   <>
-                    <a
-                      onClick={() => handleNavClick("events")}
-                      style={{ cursor: "pointer" }}
-                    >
+                    <a onClick={() => handleNavClick("events")} style={{ cursor: "pointer" }}>
                       Events
                     </a>
                     {user?.role === "organizer" && (
-                      <a
-                        onClick={() => handleNavClick("create-event")}
-                        style={{ cursor: "pointer" }}
-                      >
+                      <a onClick={() => handleNavClick("create-event")} style={{ cursor: "pointer" }}>
                         Create Event
                       </a>
                     )}
-                    <a
-                      onClick={() => handleNavClick("teams")}
-                      style={{ cursor: "pointer" }}
-                    >
+                    <a onClick={() => handleNavClick("teams")} style={{ cursor: "pointer" }}>
                       👥 Teams
                     </a>
-                    <a
-                      onClick={() => handleNavClick("profile")}
-                      style={{ cursor: "pointer" }}
-                    >
+                    <a onClick={() => handleNavClick("profile")} style={{ cursor: "pointer" }}>
                       Profile
                     </a>
                     <NotificationBell />
@@ -201,16 +176,10 @@ function AppContent() {
               </>
             ) : (
               <>
-                <a
-                  onClick={() => handleNavClick("login")}
-                  style={{ cursor: "pointer" }}
-                >
+                <a onClick={() => handleNavClick("login")} style={{ cursor: "pointer" }}>
                   Login
                 </a>
-                <a
-                  onClick={() => handleNavClick("register")}
-                  style={{ cursor: "pointer" }}
-                >
+                <a onClick={() => handleNavClick("register")} style={{ cursor: "pointer" }}>
                   Register
                 </a>
               </>
@@ -249,7 +218,6 @@ function AppContent() {
       {isAuthenticated && currentPage === "profile" && (
         <ProfilePage 
           setCurrentPage={setCurrentPage}
-          // ✅ PASS THE FUNCTION HERE
           onManageCertificates={handleOpenCertEditor}
         />
       )}
@@ -267,22 +235,15 @@ function AppContent() {
       {/* College Admin Dashboard */}
       {isAuthenticated &&
         currentPage === "college-admin-dashboard" &&
-        user?.role === "collegeAdmin" && (
+        isCollegeAdmin && (
           <CollegeAdminDashboardPage setCurrentPage={setCurrentPage} />
         )}
 
       {/* College Admin Events Page */}
       {isAuthenticated &&
         currentPage === "college-admin-events" &&
-        user?.role === "collegeAdmin" && (
+        isCollegeAdmin && (
           <CollegeAdminEventsPage setCurrentPage={setCurrentPage} />
-        )}
-
-      {/* Principal Dashboard */}
-      {isAuthenticated &&
-        currentPage === "principal-dashboard" &&
-        user?.role === "principal" && (
-           <div className="p-8 text-center">Principal Dashboard Coming Soon</div>
         )}
     </>
   );

@@ -2,31 +2,60 @@ import React from "react";
 
 export const BackgroundDesign = () => {
   return (
-    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden bg-white">
-      {/* 1. Outer Dark Frame */}
-      <div className="absolute inset-0 border-[12px] border-slate-800" />
-      
-      {/* 2. Inner Gold/Yellow Frame */}
-      <div className="absolute top-3 left-3 right-3 bottom-3 border-[4px] border-yellow-500" />
-
-      {/* 3. Decorative Corners (Triangles) */}
-      {/* Top Left */}
-      <div className="absolute top-3 left-3 w-16 h-16 border-t-[4px] border-l-[4px] border-yellow-600 rounded-tl-lg" />
-      {/* Top Right */}
-      <div className="absolute top-3 right-3 w-16 h-16 border-t-[4px] border-r-[4px] border-yellow-600 rounded-tr-lg" />
-      {/* Bottom Left */}
-      <div className="absolute bottom-3 left-3 w-16 h-16 border-b-[4px] border-l-[4px] border-yellow-600 rounded-bl-lg" />
-      {/* Bottom Right */}
-      <div className="absolute bottom-3 right-3 w-16 h-16 border-b-[4px] border-r-[4px] border-yellow-600 rounded-br-lg" />
-
-      {/* 4. Subtle Background Pattern (Optional Watermark effect) */}
+    <div 
+      style={{
+        position: 'absolute', // Forces it to overlay/underlay
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        overflow: 'hidden',
+        backgroundColor: 'white',
+        zIndex: 0 // Ensure it sits behind content
+      }}
+    >
+      {/* 1. Outer Frame Container (Simulates padding) */}
       <div 
-        className="absolute inset-0 opacity-5"
         style={{
-            backgroundImage: "radial-gradient(circle, #000 1px, transparent 1px)",
-            backgroundSize: "20px 20px"
+          position: 'absolute',
+          top: '20px',    // p-5 is approx 20px
+          left: '20px',
+          right: '20px',
+          bottom: '20px',
         }}
-      />
+      >
+        {/* 2. Main Gold Border Frame */}
+        <div 
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            border: '3px solid #c5a059',
+            // Double line effect
+            boxShadow: 'inset 0 0 0 4px #fff, inset 0 0 0 6px #c5a059' 
+          }}
+        >
+          {/* 3. Corner Ornaments */}
+          {/* Top Left */}
+          <div style={{ position: 'absolute', top: -3, left: -3, width: 96, height: 96, borderTop: '6px solid #c5a059', borderLeft: '6px solid #c5a059' }} />
+          
+          {/* Top Right */}
+          <div style={{ position: 'absolute', top: -3, right: -3, width: 96, height: 96, borderTop: '6px solid #c5a059', borderRight: '6px solid #c5a059' }} />
+          
+          {/* Bottom Left */}
+          <div style={{ position: 'absolute', bottom: -3, left: -3, width: 96, height: 96, borderBottom: '6px solid #c5a059', borderLeft: '6px solid #c5a059' }} />
+          
+          {/* Bottom Right */}
+          <div style={{ position: 'absolute', bottom: -3, right: -3, width: 96, height: 96, borderBottom: '6px solid #c5a059', borderRight: '6px solid #c5a059' }} />
+
+          {/* 4. Center Watermark */}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.03 }}>
+             <div style={{ width: 450, height: 450, borderRadius: '50%', border: '20px solid #c5a059' }}></div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

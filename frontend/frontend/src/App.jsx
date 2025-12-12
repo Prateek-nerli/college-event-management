@@ -12,7 +12,7 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import PrincipalRegisterPage from "./pages/PrincipalRegisterPage";
 import CollegeAdminDashboardPage from "./pages/CollegeAdminDashboardPage";
 import CollegeAdminEventsPage from "./pages/CollegeAdminEventsPage";
-
+import CertificateTemplateEditor from "./components/certificates/CertificateTemplateEditor";
 
 import "./App.css";
 
@@ -21,7 +21,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState("login");
   const [selectedEventId, setSelectedEventId] = useState(null);
 
-  // ✅ UPDATED: Sync currentPage with auth status and handle all roles
+  // Sync currentPage with auth status and handle all roles
   useEffect(() => {
     if (loading) return;
 
@@ -75,6 +75,36 @@ function AppContent() {
     setCurrentPage("events");
   };
 
+  // ✅ Single place to open the certificate editor
+  const handleOpenCertEditor = (eventId) => {
+    setSelectedEventId(eventId); // Update App state
+    setCurrentPage("certificate-editor"); // Switch page
+  };
+
+  // Full-screen Certificate Editor Route
+  if (isAuthenticated && currentPage === "certificate-editor" && selectedEventId) {
+    return (
+      <div className="w-full h-screen bg-gray-50 flex flex-col overflow-hidden">
+         {/* Simple Header for Editor Page */}
+         <div className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm shrink-0">
+            <h2 className="text-xl font-bold text-gray-800">Certificate Editor</h2>
+            <button 
+              onClick={() => setCurrentPage("profile")} // Go back to profile
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition"
+            >
+              ← Back to Profile
+            </button>
+         </div>
+         
+         {/* The Editor Component takes remaining height */}
+         <div className="flex-1 overflow-hidden relative">
+            <CertificateTemplateEditor eventId={selectedEventId} />
+         </div>
+      </div>
+    );
+  }
+
+  // Standard Layout for all other pages
   return (
     <>
       <nav className="navbar">
@@ -100,17 +130,13 @@ function AppContent() {
             {isAuthenticated ? (
               <>
                 {user?.role === "admin" ? (
-                  // Admin Navigation
-                  <>
-                    <a
-                      onClick={() => handleNavClick("admin-dashboard")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      🔐 Admin Dashboard
-                    </a>
-                  </>
+                  <a
+                    onClick={() => handleNavClick("admin-dashboard")}
+                    style={{ cursor: "pointer" }}
+                  >
+                    🔐 Admin Dashboard
+                  </a>
                 ) : user?.role === "collegeAdmin" ? (
-                  // College Admin Navigation ✅ UPDATED
                   <>
                     <a
                       onClick={() => handleNavClick("college-admin-dashboard")}
@@ -126,17 +152,13 @@ function AppContent() {
                     </a>
                   </>
                 ) : user?.role === "principal" ? (
-                  // Principal Navigation ✅ UPDATED
-                  <>
-                    <a
-                      onClick={() => handleNavClick("principal-dashboard")}
-                      style={{ cursor: "pointer" }}
-                    >
-                      👨‍💼 Principal
-                    </a>
-                  </>
+                  <a
+                    onClick={() => handleNavClick("principal-dashboard")}
+                    style={{ cursor: "pointer" }}
+                  >
+                    👨‍💼 Principal
+                  </a>
                 ) : (
-                  // Regular User Navigation (Student/Organizer)
                   <>
                     <a
                       onClick={() => handleNavClick("events")}
@@ -225,7 +247,11 @@ function AppContent() {
         />
       )}
       {isAuthenticated && currentPage === "profile" && (
-        <ProfilePage setCurrentPage={setCurrentPage} />
+        <ProfilePage 
+          setCurrentPage={setCurrentPage}
+          // ✅ PASS THE FUNCTION HERE
+          onManageCertificates={handleOpenCertEditor}
+        />
       )}
       {isAuthenticated && currentPage === "teams" && (
         <TeamPage setCurrentPage={setCurrentPage} />
@@ -238,25 +264,25 @@ function AppContent() {
           <AdminDashboardPage setCurrentPage={setCurrentPage} />
         )}
 
-      {/* College Admin Dashboard ✅ UPDATED */}
+      {/* College Admin Dashboard */}
       {isAuthenticated &&
         currentPage === "college-admin-dashboard" &&
         user?.role === "collegeAdmin" && (
           <CollegeAdminDashboardPage setCurrentPage={setCurrentPage} />
         )}
 
-      {/* College Admin Events Page ✅ NEW */}
+      {/* College Admin Events Page */}
       {isAuthenticated &&
         currentPage === "college-admin-events" &&
         user?.role === "collegeAdmin" && (
           <CollegeAdminEventsPage setCurrentPage={setCurrentPage} />
         )}
 
-      {/* Principal Dashboard ✅ UPDATED */}
+      {/* Principal Dashboard */}
       {isAuthenticated &&
         currentPage === "principal-dashboard" &&
         user?.role === "principal" && (
-          <PrincipalDashboard setCurrentPage={setCurrentPage} />
+           <div className="p-8 text-center">Principal Dashboard Coming Soon</div>
         )}
     </>
   );

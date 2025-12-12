@@ -11,6 +11,10 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
 
+  // ✅ NEW: Selection & Generation States
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [generating, setGenerating] = useState(false);
+
   useEffect(() => {
     fetchParticipants();
   }, [event._id, token]);
@@ -20,8 +24,6 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
       setLoading(true);
       setError("");
 
-      console.log("📥 Fetching participants for event:", event._id);
-
       const response = await axios.get(
         `${API_BASE_URL}/events/${event._id}/participants`,
         {
@@ -29,39 +31,27 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
         }
       );
 
-      console.log("✅ Response received:", response.data);
-
       if (response.data.success) {
-        // ✅ FIX: Use allParticipants array from response
         const allParticipants = response.data.allParticipants || [];
-        console.log("📋 Total participants loaded:", allParticipants.length);
-        console.log("📋 Participants:", allParticipants);
-
         setParticipants(allParticipants);
       } else {
         setError(response.data.message || "Failed to load participants");
       }
     } catch (err) {
       console.error("❌ Error fetching participants:", err);
-
-      // ✅ FIX: Better error handling
       if (err.response?.status === 403) {
         setError("You are not authorized to view participants for this event");
       } else if (err.response?.status === 404) {
         setError("Event not found");
       } else {
-        const errorMsg =
-          err.response?.data?.message ||
-          err.message ||
-          "Failed to load participants";
-        setError(errorMsg);
+        setError(err.response?.data?.message || "Failed to load participants");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter participants based on search term
+  // Filter participants
   const filteredParticipants = participants.filter((p) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -88,11 +78,63 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
     }
   });
 
-  // Export to CSV
+  // ✅ NEW: Handle Select All
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      // Select all currently filtered/sorted participants
+      const allIds = sortedParticipants.map((p) => p._id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // ✅ NEW: Handle Single Selection
+  const handleToggle = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+    } else {
+      setSelectedIds((prev) => [...prev, id]);
+    }
+  };
+
+  // ✅ NEW: Handle Bulk Generation
+  const handleGenerateCertificates = async () => {
+    if (selectedIds.length === 0) return alert("Please select at least one student.");
+    
+    if (!window.confirm(`Generate certificates for ${selectedIds.length} students? This will create PDFs and upload them to the cloud.`)) {
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/events/${event._id}/certificates/generate-bulk`,
+        { attendees: selectedIds },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        const count = res.data.results ? res.data.results.length : 0;
+        if (count === 0 && res.data.errors > 0) {
+          alert("❌ Generation failed. Check backend console for details.");
+        } else {
+          alert(`✅ Successfully generated ${count} certificates!`);
+          setSelectedIds([]); 
+        }
+      }
+    } catch (err) {
+      console.error("Generation error:", err);
+      alert("❌ " + (err.response?.data?.message || "Failed to generate certificates"));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Export to CSV (Existing logic)
   const exportToCSV = () => {
     try {
       const headers = ["#", "Name", "Email", "Username", "Team"];
-
       const csvContent = [
         headers.join(","),
         ...sortedParticipants.map((p, idx) =>
@@ -106,27 +148,18 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
         ),
       ].join("\n");
 
-      // Create blob and download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
-
       link.setAttribute("href", url);
       link.setAttribute(
         "download",
-        `${event.title}-participants-${
-          new Date().toISOString().split("T")[0]
-        }.csv`
+        `${event.title}-participants-${new Date().toISOString().split("T")[0]}.csv`
       );
       link.style.visibility = "hidden";
-
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      console.log(
-        `✅ Exported ${sortedParticipants.length} participants to CSV`
-      );
     } catch (err) {
       console.error("❌ Export error:", err);
       alert("Failed to export CSV");
@@ -150,10 +183,8 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
           </button>
         </div>
 
-        {/* Error Message */}
         {error && <div className="error-message">⚠️ {error}</div>}
 
-        {/* Loading State */}
         {loading ? (
           <div className="loader">
             <p>Loading participants...</p>
@@ -167,9 +198,9 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
                 <span className="value">{participants.length}</span>
               </div>
               <div className="stat">
-                <span className="label">Max Capacity:</span>
-                <span className="value">
-                  {event.maxParticipants || "Unlimited"}
+                <span className="label">Selected:</span>
+                <span className="value" style={{ color: "#4f46e5" }}>
+                  {selectedIds.length}
                 </span>
               </div>
               {event.maxParticipants && (
@@ -184,12 +215,12 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
               )}
             </div>
 
-            {/* Filters */}
+            {/* Filters & Actions */}
             <div className="filters-section">
               <div className="search-box">
                 <input
                   type="text"
-                  placeholder="🔍 Search by name, email, username, or team..."
+                  placeholder="🔍 Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-input"
@@ -202,9 +233,9 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="sort-select"
                 >
-                  <option value="name">Sort by: Name</option>
-                  <option value="email">Sort by: Email</option>
-                  <option value="team">Sort by: Team</option>
+                  <option value="name">Sort: Name</option>
+                  <option value="email">Sort: Email</option>
+                  <option value="team">Sort: Team</option>
                 </select>
 
                 <button
@@ -212,7 +243,17 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
                   onClick={exportToCSV}
                   disabled={sortedParticipants.length === 0}
                 >
-                  📥 Export to CSV
+                  📥 CSV
+                </button>
+
+                {/* ✅ NEW: Generate Button */}
+                <button
+                  className="btn-export"
+                  style={{ backgroundColor: "#4f46e5", color: "white", marginLeft: "5px" }}
+                  onClick={handleGenerateCertificates}
+                  disabled={selectedIds.length === 0 || generating}
+                >
+                  {generating ? "⚙️ Processing..." : "🏅 Generate Certs"}
                 </button>
               </div>
             </div>
@@ -223,6 +264,18 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
                 <table className="participants-table">
                   <thead>
                     <tr>
+                      {/* ✅ Checkbox Column Header */}
+                      <th style={{ width: "40px", textAlign: "center" }}>
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={
+                            sortedParticipants.length > 0 &&
+                            selectedIds.length === sortedParticipants.length
+                          }
+                          style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        />
+                      </th>
                       <th>#</th>
                       <th>Name</th>
                       <th>Email</th>
@@ -235,13 +288,25 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
                       <tr
                         key={participant._id || index}
                         className="participant-row"
+                        style={
+                          selectedIds.includes(participant._id)
+                            ? { backgroundColor: "#eef2ff" }
+                            : {}
+                        }
                       >
+                        {/* ✅ Checkbox Column Row */}
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(participant._id)}
+                            onChange={() => handleToggle(participant._id)}
+                            style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                          />
+                        </td>
                         <td className="index">{index + 1}</td>
                         <td className="name">
                           <strong>
-                            {participant.fullName ||
-                              participant.username ||
-                              "-"}
+                            {participant.fullName || participant.username || "-"}
                           </strong>
                         </td>
                         <td className="email">
@@ -262,24 +327,19 @@ export default function ViewParticipantsModal({ event, token, onClose }) {
               </div>
             ) : (
               <div className="empty-state">
-                <p>
-                  😔 No participants found{" "}
-                  {searchTerm ? "matching your search" : ""}
-                </p>
+                <p>😔 No participants found</p>
               </div>
             )}
 
             {/* Results Info */}
-            {participants.length > 0 && (
-              <div className="results-info">
-                Showing {sortedParticipants.length} of {participants.length}{" "}
-                participants
-              </div>
-            )}
+            <div className="results-info">
+              {selectedIds.length > 0
+                ? `${selectedIds.length} participants selected`
+                : `Showing ${sortedParticipants.length} participants`}
+            </div>
           </>
         )}
 
-        {/* Close Button */}
         <div className="modal-footer">
           <button className="btn-close" onClick={onClose}>
             Close

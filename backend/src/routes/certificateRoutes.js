@@ -26,11 +26,10 @@ router.get(
   getCertificateTemplate
 );
 
-// Generate certificates for all participants of an event
 router.post(
-  '/events/:eventId/certificates/generate',
-  protect,
-  generateCertificatesForEvent
+  '/events/:eventId/certificates/generate-bulk',
+  protect,// This maps to the function we just wrote
+  require('../controllers/certificateController').generateAndDistributeCertificates
 );
 
 // ========== USER-LEVEL (Student) ==========

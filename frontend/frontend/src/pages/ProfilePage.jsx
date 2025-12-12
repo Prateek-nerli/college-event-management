@@ -5,11 +5,12 @@ import "../styles/ProfilePage.css";
 import EventDetailPage from "./EventDetailPage";
 import EditEventModal from "../components/EditEventModal";
 import ViewParticipantsModal from "../components/ViewParticipantsModal";
-import CertificateTemplateEditor from "../components/certificates/CertificateTemplateEditor";
+// Removed unused CertificateTemplateEditor import
 
 const API_BASE_URL = "http://localhost:5000/api";
 
-export default function ProfilePage({ setCurrentPage }) {
+// 👇 Added onManageCertificates to props
+export default function ProfilePage({ setCurrentPage, onManageCertificates }) {
   const { user, token } = useAuth();
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
@@ -20,8 +21,7 @@ export default function ProfilePage({ setCurrentPage }) {
   const [successMsg, setSuccessMsg] = useState("");
   const [editingEvent, setEditingEvent] = useState(null);
   const [viewingParticipants, setViewingParticipants] = useState(null);
-  const [showCertEditor, setShowCertEditor] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(null);
+  // Removed local certificate editor state and selectedEventId (Boss/App handles it now)
 
   // Dashboard states
   const [myEvents, setMyEvents] = useState([]);
@@ -29,6 +29,10 @@ export default function ProfilePage({ setCurrentPage }) {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [detailEventId, setDetailEventId] = useState(null);
+
+  // ✅ NEW: Certificate State
+  const [certificates, setCertificates] = useState([]);
+  const [certLoading, setCertLoading] = useState(false);
 
   // Form states
   const [editPersonal, setEditPersonal] = useState(false);
@@ -123,6 +127,29 @@ export default function ProfilePage({ setCurrentPage }) {
     }
   }, [token]);
 
+  // ✅ NEW: Fetch Certificates
+  const fetchCertificates = async () => {
+    if (!token) return;
+    try {
+      setCertLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/me/certificates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCertificates(res.data || []);
+    } catch (err) {
+      console.error("Failed to load certificates", err);
+    } finally {
+      setCertLoading(false);
+    }
+  };
+
+  // ✅ NEW: Load certificates when tab is active
+  useEffect(() => {
+    if (activeTab === "certificates" && token) {
+      fetchCertificates();
+    }
+  }, [activeTab, token]);
+
   const fetchDashboardData = async () => {
     if (!token || !profile?._id) return;
 
@@ -135,21 +162,6 @@ export default function ProfilePage({ setCurrentPage }) {
       const allEvents = res.data.data || [];
       const userId = profile?._id?.toString();
 
-      console.log("=== DEBUG INFO ===");
-      console.log("Current user ID:", userId);
-      console.log("User object:", profile);
-      console.log("All events count:", allEvents.length);
-
-      if (allEvents.length > 0) {
-        console.log("First event sample:", {
-          title: allEvents[0].title,
-          organizerId: allEvents[0].organizerId,
-          organizerId_type: typeof allEvents[0].organizerId,
-          participantsCount: allEvents[0].participants?.length,
-          participants: allEvents[0].participants,
-        });
-      }
-
       // Organized events
       const organized = allEvents.filter((event) => {
         const orgId = event.organizerId;
@@ -160,16 +172,7 @@ export default function ProfilePage({ setCurrentPage }) {
             ? orgId._id.toString()
             : orgId?.toString();
 
-        const isMatch = orgIdStr === userId;
-
-        if (isMatch) {
-          console.log(`✅ Matched (organized): ${event.title}`, {
-            orgId,
-            userId,
-          });
-        }
-
-        return isMatch;
+        return orgIdStr === userId;
       });
 
       // Registered events
@@ -184,16 +187,8 @@ export default function ProfilePage({ setCurrentPage }) {
           return participantId === userId;
         });
 
-        if (isRegistered) {
-          console.log(`✅ Registered: ${event.title}`);
-        }
-
         return isRegistered;
       });
-
-      console.log("Organized events found:", organized.length);
-      console.log("Registered events found:", registered.length);
-      console.log("================");
 
       setMyEvents(organized);
       setRegisteredEvents(registered);
@@ -307,14 +302,11 @@ export default function ProfilePage({ setCurrentPage }) {
 
     try {
       setLoading(true);
-      console.log("🗑️ Unregistering from event:", eventId);
-
       const event = registeredEvents.find((e) => e._id === eventId);
       if (!event) {
         throw new Error("Event not found");
       }
 
-      // Check if this is a team event and if user is a team leader
       let isTeamLeader = false;
       let teamIdToUnregister = null;
 
@@ -354,8 +346,6 @@ export default function ProfilePage({ setCurrentPage }) {
       }
 
       if (isTeamLeader && teamIdToUnregister) {
-        // Team unregister
-        console.log("👥 Unregistering entire team from event...");
         const confirmTeamUnregister = window.confirm(
           "⚠️ You are the team leader. Unregistering will remove your ENTIRE TEAM from this event. All team members will be removed. Continue?"
         );
@@ -365,29 +355,21 @@ export default function ProfilePage({ setCurrentPage }) {
           return;
         }
 
-        const res = await axios.post(
+        await axios.post(
           `${API_BASE_URL}/events/${eventId}/unregister-team`,
           { teamId: teamIdToUnregister },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        console.log("✅ Team unregistered response:", res.data);
-        alert(`✅ Your entire team has been unregistered! ${res.data.message}`);
+        alert(`✅ Your entire team has been unregistered!`);
       } else {
-        // Individual unregister
-        console.log("👤 Unregistering individual from event...");
-        const res = await axios.post(
+        await axios.post(
           `${API_BASE_URL}/events/${eventId}/unregister`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        console.log("✅ Individual unregistered response:", res.data);
         alert("✅ You have been unregistered from the event!");
       }
 
-      // Refresh registered events list
-      console.log("🔄 Refreshing registered events...");
       const updatedRes = await axios.get(
         `${API_BASE_URL}/events/my-events/registered`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -395,10 +377,6 @@ export default function ProfilePage({ setCurrentPage }) {
 
       setRegisteredEvents(updatedRes.data.data);
       setError("");
-      console.log(
-        "✅ Registered events refreshed:",
-        updatedRes.data.data.length
-      );
     } catch (err) {
       console.error("❌ Unregister error:", err);
       const errorMsg =
@@ -585,6 +563,15 @@ export default function ProfilePage({ setCurrentPage }) {
           >
             📋 My Events
           </button>
+          {/* ✅ NEW: Certificates Tab Button */}
+          <button
+            className={`tab-btn ${
+              activeTab === "certificates" ? "active" : ""
+            }`}
+            onClick={() => setActiveTab("certificates")}
+          >
+            🏅 Certificates
+          </button>
           <button
             className={`tab-btn ${activeTab === "contact" ? "active" : ""}`}
             onClick={() => setActiveTab("contact")}
@@ -770,7 +757,7 @@ export default function ProfilePage({ setCurrentPage }) {
                           const isExpanded = selectedEvent?._id === event._id;
 
                           return (
-                            <div key={event._id} className="event-item">
+                            <div key={event._1d || event._id} className="event-item">
                               <div className="event-header">
                                 <h3>{event.title}</h3>
                                 <span className="category-badge">
@@ -796,53 +783,6 @@ export default function ProfilePage({ setCurrentPage }) {
                                 </span>
                               </div>
 
-                              {isExpanded && (
-                                <div className="event-detail-expand">
-                                  <div className="detail-content">
-                                    <h4>Full Description</h4>
-                                    <p>{event.description}</p>
-
-                                    <h4>Event Details</h4>
-                                    <div className="detail-grid">
-                                      <div>
-                                        <strong>Start Date:</strong>
-                                        <p>
-                                          {new Date(
-                                            event.dates?.startDate
-                                          ).toLocaleString("en-IN")}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <strong>End Date:</strong>
-                                        <p>
-                                          {new Date(
-                                            event.dates?.endDate
-                                          ).toLocaleString("en-IN")}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <strong>Venue:</strong>
-                                        <p>{event.location?.venue || "TBD"}</p>
-                                      </div>
-                                      <div>
-                                        <strong>Category:</strong>
-                                        <p>{event.category}</p>
-                                      </div>
-                                    </div>
-
-                                    <h4>Registration Info</h4>
-                                    <p>
-                                      <strong>Total Registered:</strong>{" "}
-                                      {event.participants?.length || 0}
-                                    </p>
-                                    <p>
-                                      <strong>Max Capacity:</strong>{" "}
-                                      {event.maxParticipants || "Unlimited"}
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-
                               <div className="event-actions">
                                 <button
                                   className="btn-secondary"
@@ -851,13 +791,10 @@ export default function ProfilePage({ setCurrentPage }) {
                                   👥 View Participants
                                 </button>
 
-                                {/* NEW: Manage Certificates button */}
+                                {/* ✅ UPDATED: Use onManageCertificates prop instead of local state */}
                                 <button
                                   className="btn-secondary"
-                                  onClick={() => {
-                                    setSelectedEventId(event._id);
-                                    setShowCertEditor(true);
-                                  }}
+                                  onClick={() => onManageCertificates(event._id)}
                                 >
                                   🏅 Manage Certificates
                                 </button>
@@ -882,12 +819,7 @@ export default function ProfilePage({ setCurrentPage }) {
                     ) : (
                       <div className="empty-message">
                         <p>📭 No events organized yet</p>
-                        <p
-                          style={{
-                            fontSize: "13px",
-                            marginTop: "8px",
-                          }}
-                        >
+                        <p style={{ fontSize: "13px", marginTop: "8px" }}>
                           Create your first event from the navbar
                         </p>
                       </div>
@@ -916,7 +848,6 @@ export default function ProfilePage({ setCurrentPage }) {
                       const eventDate = new Date(
                         event.dates?.startDate || new Date()
                       );
-                      const isExpanded = selectedEvent?._id === event._id;
                       const organizerId =
                         event.organizerId?._id || event.organizerId;
                       const isOrganizer =
@@ -948,53 +879,6 @@ export default function ProfilePage({ setCurrentPage }) {
                             </span>
                           </div>
 
-                          {isExpanded && (
-                            <div className="event-detail-expand">
-                              <div className="detail-content">
-                                <h4>Full Description</h4>
-                                <p>{event.description}</p>
-
-                                <h4>Event Details</h4>
-                                <div className="detail-grid">
-                                  <div>
-                                    <strong>Start Date:</strong>
-                                    <p>
-                                      {new Date(
-                                        event.dates?.startDate
-                                      ).toLocaleString("en-IN")}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <strong>End Date:</strong>
-                                    <p>
-                                      {new Date(
-                                        event.dates?.endDate
-                                      ).toLocaleString("en-IN")}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <strong>Venue:</strong>
-                                    <p>{event.location?.venue || "TBD"}</p>
-                                  </div>
-                                  <div>
-                                    <strong>Category:</strong>
-                                    <p>{event.category}</p>
-                                  </div>
-                                </div>
-
-                                <h4>Registration Info</h4>
-                                <p>
-                                  <strong>Organizer:</strong>{" "}
-                                  {event.organizerId?.username || "Unknown"}
-                                </p>
-                                <p>
-                                  <strong>Total Registered:</strong>{" "}
-                                  {event.participants?.length || 0}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
                           <div className="event-actions">
                             <button
                               className="btn-secondary"
@@ -1008,11 +892,6 @@ export default function ProfilePage({ setCurrentPage }) {
                                 className="btn-danger"
                                 onClick={() => handleUnregister(event._id)}
                                 disabled={loading}
-                                title={
-                                  event.registrationType === "team"
-                                    ? "Unregister entire team"
-                                    : "Unregister yourself"
-                                }
                               >
                                 {loading
                                   ? "⏳ Unregistering..."
@@ -1027,17 +906,87 @@ export default function ProfilePage({ setCurrentPage }) {
                 ) : (
                   <div className="empty-message">
                     <p>📭 No events registered yet</p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        marginTop: "8px",
-                      }}
-                    >
+                    <p style={{ fontSize: "13px", marginTop: "8px" }}>
                       Browse events and register to get started!
                     </p>
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* ✅ NEW: CERTIFICATES TAB */}
+        {activeTab === "certificates" && (
+          <div className="tab-pane">
+            <div className="section-header">
+              <h2>My Certificates</h2>
+            </div>
+
+            {certLoading ? (
+              <div className="loader"></div>
+            ) : certificates.length === 0 ? (
+              <div className="empty-message">
+                <p>📭 No certificates earned yet.</p>
+                <p style={{ fontSize: "13px", marginTop: "8px" }}>
+                  Participate in events to earn certificates!
+                </p>
+              </div>
+            ) : (
+              <div className="stats-grid" style={{ marginTop: "20px" }}>
+                {certificates.map((cert) => (
+                  <div
+                    key={cert._id}
+                    className="stat-card"
+                    style={{
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: "15px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        width: "100%",
+                      }}
+                    >
+                      <div className="stat-icon">📜</div>
+                      <div>
+                        <h4
+                          style={{
+                            margin: 0,
+                            color: "#333",
+                            fontSize: "16px",
+                          }}
+                        >
+                          {cert.event?.title || "Event Certificate"}
+                        </h4>
+                        <small style={{ color: "#666" }}>
+                          Issued: {new Date(cert.issuedAt).toLocaleDateString()}
+                        </small>
+                      </div>
+                    </div>
+
+                    <a
+                      href={cert.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-primary"
+                      style={{
+                        textDecoration: "none",
+                        textAlign: "center",
+                        display: "block",
+                        width: "100%",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Download PDF ⬇️
+                    </a>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -1149,12 +1098,6 @@ export default function ProfilePage({ setCurrentPage }) {
           <div className="tab-pane">
             <div className="section-header">
               <h2>Notification Preferences</h2>
-              <button
-                className={`btn-toggle ${editNotifications ? "active" : ""}`}
-                onClick={() => setEditNotifications(!editNotifications)}
-              >
-                {editNotifications ? "✕ Cancel" : "✏️ Edit"}
-              </button>
             </div>
 
             <form className="edit-form" onSubmit={handleSave}>
@@ -1367,6 +1310,7 @@ export default function ProfilePage({ setCurrentPage }) {
           </div>
         )}
       </div>
+
       {/* EDIT EVENT MODAL */}
       {editingEvent && (
         <EditEventModal
@@ -1385,31 +1329,6 @@ export default function ProfilePage({ setCurrentPage }) {
           onClose={() => setViewingParticipants(null)}
         />
       )}
-
-{showCertEditor && selectedEventId && (
-  <div className="modal-overlay">
-    <div className="modal-box">
-      <div className="modal-header">
-        <h2 className="text-lg font-semibold">Certificate Template</h2>
-        <button
-          className="text-sm px-2 py-1 border rounded"
-          onClick={() => {
-            setShowCertEditor(false);
-            setSelectedEventId(null);
-          }}
-        >
-          ✕ Close
-        </button>
-      </div>
-
-      <div className="modal-body">
-        <CertificateTemplateEditor eventId={selectedEventId} />
-      </div>
-    </div>
-  </div>
-)}
-
-
     </div>
   );
 }

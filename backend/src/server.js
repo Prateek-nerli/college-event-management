@@ -4,17 +4,10 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const path = require('path');                           // 👈 ADD THIS
 const certificateRoutes = require('./routes/certificateRoutes'); // 👈 ADD THIS
-
+const startReminderJob = require('./jobs/reminder.job');
 
 // Load environment variables from .env file
 dotenv.config();
-
-
-// DEBUG: Check if env variables are loaded
-console.log('🔍 DEBUG: MONGO_URI =', process.env.MONGO_URI);
-console.log('🔍 DEBUG: PORT =', process.env.PORT);
-console.log('🔍 DEBUG: NODE_ENV =', process.env.NODE_ENV);
-console.log('🔍 DEBUG: All env keys:', Object.keys(process.env).filter(k => k.startsWith('MONGO') || k === 'PORT' || k === 'NODE_ENV'));
 // Connect to database
 connectDB();
 
@@ -26,9 +19,14 @@ const app = express();
 // Middleware
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded data
-app.use(cors({ 
-    origin: ['http://localhost:5173'],
-    credentials: true
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
 }));
 // Static files for generated certificates & uploads
 app.use(
@@ -95,6 +93,8 @@ app.use((err, req, res, next) => {
     message: err.message || 'Server Error'
   });
 });
+
+startReminderJob();
 
 
 // ============ START SERVER ============

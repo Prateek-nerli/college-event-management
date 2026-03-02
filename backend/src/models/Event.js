@@ -189,6 +189,10 @@ const eventSchema = new mongoose.Schema(
       enum: ["public", "private"],
       default: "public",
     },
+    reminderSent: {
+      type: Boolean,
+      default: false, 
+    },
 
     // ============ CERTIFICATE TEMPLATE (NEW) ============
     certificateTemplate: certificateTemplateSchema,

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { BackgroundDesign } from "./BackgroundDesign";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+
 // Initial data
 const INITIAL_DATA = {
   topHeader: "AWARDED BY",
@@ -43,7 +45,7 @@ const CertificateTemplateEditor = ({ eventId }) => {
 
         // 2. Fetch from API
         const tplRes = await axios.get(
-          `http://localhost:5000/api/events/${eventId}/certificate-template`,
+          `${API_BASE_URL}/events/${eventId}/certificate-template`,
           config
         );
 
@@ -64,7 +66,7 @@ const CertificateTemplateEditor = ({ eventId }) => {
         // 4. Fallback to Event object if needed
         if (!tpl) {
           const eventRes = await axios.get(
-            `http://localhost:5000/api/events/${eventId}`,
+            `${API_BASE_URL}/events/${eventId}`,
             config
           );
           tpl = eventRes?.data?.data?.certificateTemplate || {};
@@ -167,7 +169,7 @@ const CertificateTemplateEditor = ({ eventId }) => {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       await axios.post(
-        `http://localhost:5000/api/events/${eventId}/certificate-template`,
+        `${API_BASE_URL}/events/${eventId}/certificate-template`,
         payload,
         config
       );
@@ -190,7 +192,7 @@ const CertificateTemplateEditor = ({ eventId }) => {
       const token = localStorage.getItem("token");
       
       const res = await axios.post(
-        `http://localhost:5000/api/events/${eventId}/certificates/generate`,
+        `${API_BASE_URL}/events/${eventId}/certificates/generate`,
         { type: "participation" },
         { headers: { Authorization: `Bearer ${token}` } } // Added Header
       );

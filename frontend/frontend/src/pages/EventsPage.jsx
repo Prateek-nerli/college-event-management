@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import '../styles/EventsPage.css';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 // Placeholder image if no poster is provided
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/e2e8f0/475569?text=Event+Poster+Not+Available";

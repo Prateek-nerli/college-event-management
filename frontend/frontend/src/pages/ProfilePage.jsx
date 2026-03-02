@@ -7,7 +7,7 @@ import EditEventModal from "../components/EditEventModal";
 import ViewParticipantsModal from "../components/ViewParticipantsModal";
 // Removed unused CertificateTemplateEditor import
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 // 👇 Added onManageCertificates to props
 export default function ProfilePage({ setCurrentPage, onManageCertificates }) {

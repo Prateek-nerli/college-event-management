@@ -1,5 +1,3 @@
-
-
 // =====================================================
 // PRINCIPAL REQUEST CONTROLLER (Admin Approval)
 // =====================================================
@@ -23,6 +21,7 @@ exports.createRequest = async (req, res) => {
       usnPrefix,
       email,
       password,
+      username,
     } = req.body;
 
     if (
@@ -43,8 +42,7 @@ exports.createRequest = async (req, res) => {
     if (!principalEmailRegex.test(email)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Email must contain 'principal' and end with .edu or .ac.in",
+        message: "Email must contain 'principal' and end with .edu or .ac.in",
       });
     }
 
@@ -67,6 +65,7 @@ exports.createRequest = async (req, res) => {
       collegeName,
       collegeCode,
       usnPrefix,
+      username,
       email,
       password, // keep plain here; hash only when creating real user
     });
@@ -114,7 +113,7 @@ exports.approveRequest = async (req, res) => {
 
     // ✅ Create college admin user
     const user = await User.create({
-      username: request.email.split("@")[0],
+      username: request.email,
       email: request.email,
       password: request.password, // plain text; User pre-save hook will hash
       usn: request.usnPrefix, // Store USN prefix for principal
@@ -128,9 +127,7 @@ exports.approveRequest = async (req, res) => {
       isActive: true,
     });
 
-    console.log(
-      `✅ College Admin created: ${user.email} with id: ${user._id}`
-    );
+    console.log(`✅ College Admin created: ${user.email} with id: ${user._id}`);
 
     // ✅ Auto-assign this principal to students with matching USN prefix
     if (user.usn) {

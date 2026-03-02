@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
   // ❌ DELETED: headers: { 'Content-Type': 'application/json' } 
   // We removed the line above. The browser will now automatically detect 
   // if it's JSON or FormData (File Upload) and set headers correctly.
